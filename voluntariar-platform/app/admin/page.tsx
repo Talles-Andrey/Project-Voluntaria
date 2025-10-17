@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { apiService } from "@/lib/api"
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
@@ -11,19 +11,16 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Users,
   FolderOpen,
   Gift,
-  TrendingUp,
   Search,
   MoreHorizontal,
   Eye,
   Edit,
   CheckCircle,
   XCircle,
-  AlertTriangle,
   Calendar,
   MapPin,
   Clock,
@@ -34,160 +31,132 @@ import {
   LogOut,
 } from "lucide-react"
 
-// Dados mockados para o painel administrativo
-const estatisticasGerais = {
-  totalUsuarios: 2847,
-  usuariosAtivos: 1923,
-  totalProjetos: 156,
-  projetosAtivos: 89,
-  totalCampanhas: 47,
-  campanhasAtivas: 23,
-  valorArrecadado: 487650,
-  horasVoluntariado: 12450,
+// Tipos para os dados da API
+interface EstatisticasGerais {
+  totalUsuarios: number;
+  usuariosAtivos: number;
+  totalProjetos: number;
+  projetosAtivos: number;
+  totalCampanhas: number;
+  campanhasAtivas: number;
+  valorArrecadado: number;
+  horasVoluntariado: number;
 }
 
-const usuarios = [
-  {
-    id: 1,
-    nome: "Maria Silva",
-    email: "maria.silva@email.com",
-    cidade: "São Paulo",
-    estado: "SP",
-    dataIngresso: "2024-01-15",
-    status: "Ativo",
-    projetos: 3,
-    horas: 24,
-    doacoes: 5,
-  },
-  {
-    id: 2,
-    nome: "João Santos",
-    email: "joao.santos@email.com",
-    cidade: "Rio de Janeiro",
-    estado: "RJ",
-    dataIngresso: "2024-02-03",
-    status: "Ativo",
-    projetos: 2,
-    horas: 16,
-    doacoes: 3,
-  },
-  {
-    id: 3,
-    nome: "Ana Costa",
-    email: "ana.costa@email.com",
-    cidade: "Belo Horizonte",
-    estado: "MG",
-    dataIngresso: "2024-01-28",
-    status: "Inativo",
-    projetos: 1,
-    horas: 8,
-    doacoes: 2,
-  },
-  {
-    id: 4,
-    nome: "Pedro Oliveira",
-    email: "pedro.oliveira@email.com",
-    cidade: "Salvador",
-    estado: "BA",
-    dataIngresso: "2024-03-01",
-    status: "Ativo",
-    projetos: 4,
-    horas: 32,
-    doacoes: 7,
-  },
-]
+interface Usuario {
+  id: string | number;
+  name?: string;
+  nome?: string;
+  email: string;
+  city?: string;
+  cidade?: string;
+  state?: string;
+  estado?: string;
+  createdAt?: string;
+  dataIngresso?: string;
+  status?: string;
+  projetos?: number;
+  horas?: number;
+  doacoes?: number;
+}
 
-const projetos = [
-  {
-    id: 1,
-    titulo: "Educação para Todos",
-    organizacao: "Instituto Educar",
-    categoria: "Educação",
-    cidade: "São Paulo",
-    estado: "SP",
-    status: "Ativo",
-    voluntarios: 12,
-    maxVoluntarios: 20,
-    dataCriacao: "2024-02-01",
-    dataInicio: "2024-02-15",
-    dataFim: "2024-12-15",
-  },
-  {
-    id: 2,
-    titulo: "Alimentação Solidária",
-    organizacao: "Ação Solidária RJ",
-    categoria: "Assistência Social",
-    cidade: "Rio de Janeiro",
-    estado: "RJ",
-    status: "Ativo",
-    voluntarios: 8,
-    maxVoluntarios: 15,
-    dataCriacao: "2024-01-20",
-    dataInicio: "2024-02-01",
-    dataFim: "2024-11-30",
-  },
-  {
-    id: 3,
-    titulo: "Preservação Ambiental",
-    organizacao: "Verde Vida BH",
-    categoria: "Meio Ambiente",
-    cidade: "Belo Horizonte",
-    estado: "MG",
-    status: "Pendente",
-    voluntarios: 0,
-    maxVoluntarios: 25,
-    dataCriacao: "2024-03-10",
-    dataInicio: "2024-03-20",
-    dataFim: "2024-09-20",
-  },
-]
+interface Projeto {
+  id: string | number;
+  title?: string;
+  titulo?: string;
+  description?: string;
+  organization?: string;
+  organizacao?: string;
+  category?: string;
+  categoria?: string;
+  cause?: string;
+  city?: string;
+  cidade?: string;
+  location?: string;
+  state?: string;
+  estado?: string;
+  status: string;
+  users?: any[];
+  voluntarios?: number;
+  maxVolunteers?: number;
+  maxVoluntarios?: number;
+  enrollments?: any[];
+  createdAt?: string;
+  dataCriacao?: string;
+  startDate?: string;
+  dataInicio?: string;
+  endDate?: string;
+  dataFim?: string;
+  ngo?: {
+    id: string;
+    organizationName: string;
+    cnpj: string;
+    description: string;
+    email: string;
+    city: string;
+    state: string;
+    causes: string[];
+    areas: string[];
+  };
+}
 
-const campanhas = [
-  {
-    id: 1,
-    titulo: "Reforma da Escola Municipal",
-    organizacao: "Associação de Pais Vila Esperança",
-    categoria: "Educação",
-    meta: 50000,
-    arrecadado: 32500,
-    doadores: 127,
-    status: "Ativa",
-    dataCriacao: "2024-02-01",
-    dataFim: "2024-03-31",
-  },
-  {
-    id: 2,
-    titulo: "Tratamento para Maria",
-    organizacao: "Família Silva",
-    categoria: "Saúde",
-    meta: 25000,
-    arrecadado: 18750,
-    doadores: 89,
-    status: "Ativa",
-    dataCriacao: "2024-02-15",
-    dataFim: "2024-03-20",
-  },
-  {
-    id: 3,
-    titulo: "Biblioteca Comunitária",
-    organizacao: "Ler é Crescer",
-    categoria: "Educação",
-    meta: 35000,
-    arrecadado: 8750,
-    doadores: 45,
-    status: "Pendente",
-    dataCriacao: "2024-03-05",
-    dataFim: "2024-04-30",
-  },
-]
+interface Campanha {
+  id: string | number;
+  title: string;
+  description: string;
+  goalAmount: number;
+  currentAmount: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+  category: string;
+  ngoId: string;
+  numberOfDonations: number;
+  createdAt: string;
+  ngo?: {
+    id: string;
+    organizationName: string;
+    cnpj: string;
+    description: string;
+    email: string;
+    city: string;
+    state: string;
+    causes: string[];
+    areas: string[];
+  };
+}
 
 export default function AdminPage() {
+  // Estados para dados reais da API
+  const [estatisticasGerais, setEstatisticasGerais] = useState<EstatisticasGerais>({
+    totalUsuarios: 0,
+    usuariosAtivos: 0,
+    totalProjetos: 0,
+    projetosAtivos: 0,
+    totalCampanhas: 0,
+    campanhasAtivas: 0,
+    valorArrecadado: 0,
+    horasVoluntariado: 0,
+  });
+  
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  
+  // Estados de loading
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
+  
+  // Estados de filtros
   const [filtroUsuarios, setFiltroUsuarios] = useState("")
   const [filtroStatusUsuarios, setFiltroStatusUsuarios] = useState("Todos")
   const [filtroProjetos, setFiltroProjetos] = useState("")
   const [filtroStatusProjetos, setFiltroStatusProjetos] = useState("Todos")
   const [filtroCampanhas, setFiltroCampanhas] = useState("")
   const [filtroStatusCampanhas, setFiltroStatusCampanhas] = useState("Todos")
+  const [filtroCategoriaCampanhas, setFiltroCategoriaCampanhas] = useState("Todas")
   
   // Estados para projetos dinâmicos
   const [projetosDinamicos, setProjetosDinamicos] = useState<any[]>([])
@@ -195,9 +164,212 @@ export default function AdminPage() {
   const [errorProjetos, setErrorProjetos] = useState("")
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [creatingProject, setCreatingProject] = useState(false)
-  
 
-  
+  // Estados para campanhas
+  const [showCreateCampaign, setShowCreateCampaign] = useState(false)
+  const [creatingCampaign, setCreatingCampaign] = useState(false)
+
+  // useEffect para carregar dados ao montar o componente
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  // Função para buscar todos os dados
+  const fetchAllData = async () => {
+    console.log('🔄 Carregando todos os dados...');
+    await Promise.all([
+      fetchEstatisticas(),
+      fetchUsuarios(),
+      fetchProjetos(),
+      fetchCampanhas()
+    ]);
+  };
+
+  // Buscar estatísticas gerais
+  const fetchEstatisticas = async () => {
+    try {
+      setLoadingStats(true);
+      
+      const token = localStorage.getItem('auth_token');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      };
+
+      // Fazer requisições em paralelo
+      const [usersResponse, projectsResponse, campaignsResponse] = await Promise.all([
+        fetch('http://localhost:3333/api/users/all', { headers }),
+        fetch('http://localhost:3333/api/projects', { headers }),
+        fetch('http://localhost:3333/api/campaigns', { headers })
+      ]);
+
+      const [usersData, projectsData, campaignsData] = await Promise.all([
+        usersResponse.json(),
+        projectsResponse.json(),
+        campaignsResponse.json()
+      ]);
+
+      // Calcular estatísticas
+      const totalUsuarios = Array.isArray(usersData) ? usersData.length : 0;
+      const usuariosAtivos = Array.isArray(usersData) ? usersData.filter(u => u.status === 'active' || u.ativo).length : 0;
+      
+      const totalProjetos = Array.isArray(projectsData) ? projectsData.length : 0;
+      const projetosAtivos = Array.isArray(projectsData) ? projectsData.filter(p => {
+        const project = p.project || p;
+        return project.status === 'open' || project.status === 'ativo';
+      }).length : 0;
+
+      const totalCampanhas = Array.isArray(campaignsData) ? campaignsData.length : 0;
+      const campanhasAtivas = Array.isArray(campaignsData) ? campaignsData.filter(c => c.status === 'active').length : 0;
+
+      console.log('📊 Dados das campanhas para cálculo:', campaignsData);
+      let valorArrecadado = 0;
+      
+      if (Array.isArray(campaignsData)) {
+        valorArrecadado = campaignsData.reduce((total, campaign) => {
+          console.log(`💰 Processando campanha: ${campaign.title}`);
+          console.log(`💰 currentAmount original: ${campaign.currentAmount} (tipo: ${typeof campaign.currentAmount})`);
+          
+          let currentValue = 0;
+          if (campaign.currentAmount !== null && campaign.currentAmount !== undefined) {
+            currentValue = parseFloat(String(campaign.currentAmount)) || 0;
+          }
+          
+          console.log(`💰 Valor convertido: ${currentValue}`);
+          console.log(`💰 Total anterior: ${total}, Novo total: ${total + currentValue}`);
+          
+          return total + currentValue;
+        }, 0);
+      }
+
+      // Estimar horas de voluntariado
+      const totalVolunteers = Array.isArray(projectsData) ? projectsData.reduce((total, item) => {
+        const project = item.project || item;
+        return total + (project.users?.length || 0);
+      }, 0) : 0;
+      const horasVoluntariado = totalVolunteers * 4 * 12; // 4h/semana * 12 semanas
+
+      setEstatisticasGerais({
+        totalUsuarios,
+        usuariosAtivos,
+        totalProjetos,
+        projetosAtivos,
+        totalCampanhas,
+        campanhasAtivas,
+        valorArrecadado,
+        horasVoluntariado
+      });
+
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Buscar usuários
+  const fetchUsuarios = async (searchName?: string) => {
+    try {
+      setLoadingUsers(true);
+      const token = localStorage.getItem('auth_token');
+      
+      // Construir URL com query parameter se houver busca por nome
+      let url = 'http://localhost:3333/api/users/all';
+      if (searchName && searchName.trim()) {
+        url += `?name=${encodeURIComponent(searchName.trim())}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Dados dos usuários da API (nova rota):', data);
+        setUsuarios(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Erro na resposta da API de usuários:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Buscar projetos
+  const fetchProjetos = async () => {
+    try {
+      setLoadingProjects(true);
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await fetch('http://localhost:3333/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📋 Dados dos projetos da API:', data);
+        const normalizedProjects = Array.isArray(data) ? data.map(item => {
+          const project = item.project || item;
+          return {
+            ...project,
+            voluntarios: project.users?.length || 0
+          };
+        }) : [];
+        console.log('📋 Projetos normalizados:', normalizedProjects);
+        setProjetos(normalizedProjects);
+      } else {
+        console.error('Erro na resposta da API de projetos:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar projetos:', error);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  // Buscar campanhas
+  const fetchCampanhas = async () => {
+    try {
+      setLoadingCampaigns(true);
+      const token = localStorage.getItem('auth_token');
+      
+      const response = await fetch('http://localhost:3333/api/campaigns', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Campanhas recebidas da API:', data);
+        
+        // Log para debug do cálculo
+        if (Array.isArray(data)) {
+          const valorTotal = data.reduce((total, campaign) => {
+            console.log(`💰 Campanha "${campaign.title}": currentAmount = ${campaign.currentAmount}`);
+            return total + (campaign.currentAmount || 0);
+          }, 0);
+          console.log(`💵 Valor total arrecadado calculado: R$ ${valorTotal}`);
+        }
+        
+        setCampanhas(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar campanhas:', error);
+    } finally {
+      setLoadingCampaigns(false);
+    }
+  };
+
   // Estados para formulário de criação de projeto
   const [novoProjeto, setNovoProjeto] = useState({
     title: "",
@@ -207,6 +379,16 @@ export default function AdminPage() {
     startDate: "",
     endDate: "",
     maxVolunteers: 1
+  })
+
+  // Estados para formulário de criação de campanha
+  const [novaCampanha, setNovaCampanha] = useState({
+    title: "",
+    description: "",
+    goalAmount: 1000,
+    startDate: "",
+    endDate: "",
+    category: "Educação"
   })
 
   // Função para resetar o formulário
@@ -222,18 +404,55 @@ export default function AdminPage() {
     })
   }
 
-  const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat("pt-BR", {
+  // Função para resetar o formulário de campanha
+  const resetCampaignForm = () => {
+    setNovaCampanha({
+      title: "",
+      description: "",
+      goalAmount: 1000,
+      startDate: "",
+      endDate: "",
+      category: "Educação"
+    })
+  }
+
+  const formatarMoeda = (valor: number | string | undefined | null) => {
+    console.log(`🎯 formatarMoeda recebeu: ${valor} (tipo: ${typeof valor})`);
+    
+    if (valor === undefined || valor === null || valor === '') {
+      console.log('🎯 Valor vazio, retornando R$ 0,00');
+      return 'R$ 0,00';
+    }
+    
+    let numericValue = 0;
+    if (typeof valor === 'string') {
+      numericValue = parseFloat(valor) || 0;
+    } else if (typeof valor === 'number') {
+      numericValue = valor;
+    }
+    
+    if (isNaN(numericValue)) {
+      console.log('🎯 Valor é NaN, retornando R$ 0,00');
+      return 'R$ 0,00';
+    }
+    
+    const formatted = new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(valor)
+    }).format(numericValue);
+    
+    console.log(`🎯 Valor formatado: ${formatted}`);
+    return formatted;
   }
 
-  const formatarData = (data: string) => {
-    return new Date(data).toLocaleDateString("pt-BR")
+  const formatarData = (data: string | undefined) => {
+    if (!data) return '-';
+    try {
+      return new Date(data).toLocaleDateString("pt-BR")
+    } catch {
+      return '-';
+    }
   }
-
-
 
   // Função para buscar projetos da ONG
   const fetchProjetosOng = async () => {
@@ -403,32 +622,149 @@ export default function AdminPage() {
     }
   }
 
+  // Função para criar nova campanha
+  const handleCreateCampaign = async () => {
+    try {
+      setCreatingCampaign(true)
+
+      const token = localStorage.getItem('auth_token')
+      
+      if (!token) {
+        alert('Token de autenticação não encontrado')
+        return
+      }
+
+      // Validar campos obrigatórios
+      if (!novaCampanha.title?.trim()) {
+        alert('Título da campanha é obrigatório')
+        return
+      }
+      if (!novaCampanha.description?.trim()) {
+        alert('Descrição da campanha é obrigatória')
+        return
+      }
+      if (!novaCampanha.goalAmount || novaCampanha.goalAmount <= 0) {
+        alert('Meta de arrecadação deve ser maior que zero')
+        return
+      }
+      if (!novaCampanha.startDate) {
+        alert('Data de início é obrigatória')
+        return
+      }
+      if (!novaCampanha.endDate) {
+        alert('Data de fim é obrigatória')
+        return
+      }
+      
+      // Validar se a data de fim é posterior à data de início
+      if (new Date(novaCampanha.endDate) <= new Date(novaCampanha.startDate)) {
+        alert('A data de fim deve ser posterior à data de início')
+        return
+      }
+
+      const response = await fetch('http://localhost:3333/api/campaigns', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(novaCampanha)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Campanha criada com sucesso:', data)
+        
+        // Campanha criada com sucesso
+        alert('Campanha criada com sucesso!')
+        
+        // Limpar formulário
+        resetCampaignForm()
+        
+        // Fechar modal e recarregar campanhas
+        setShowCreateCampaign(false)
+        fetchCampanhas()
+      } else {
+        const errorData = await response.json()
+        alert(`Erro ao criar campanha: ${errorData.message || 'Erro desconhecido'}`)
+      }
+      
+    } catch (error) {
+      console.error("Erro ao criar campanha:", error)
+      alert('Erro ao criar campanha. Tente novamente.')
+    } finally {
+      setCreatingCampaign(false)
+    }
+  }
+
   // useEffect para carregar projetos ao montar a página
   useEffect(() => {
     fetchProjetosOng()
   }, [])
 
+  // useEffect para buscar usuários quando o filtro de busca muda
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchUsuarios(filtroUsuarios);
+    }, 500); // Debounce de 500ms para evitar muitas requisições
+
+    return () => clearTimeout(timeoutId);
+  }, [filtroUsuarios]);
+
   const usuariosFiltrados = usuarios.filter((usuario) => {
-    const matchNome = usuario.nome.toLowerCase().includes(filtroUsuarios.toLowerCase())
-    const matchStatus = filtroStatusUsuarios === "Todos" || usuario.status === filtroStatusUsuarios
-    return matchNome && matchStatus
+    // Filtrar apenas por status, pois a busca por nome é feita na API
+    let matchStatus = true;
+    if (filtroStatusUsuarios !== "Todos") {
+      if (filtroStatusUsuarios === "Ativo") {
+        matchStatus = usuario.status === "Ativo" || usuario.status === "active" || !usuario.status;
+      } else if (filtroStatusUsuarios === "Inativo") {
+        matchStatus = usuario.status === "Inativo" || usuario.status === "inactive";
+      }
+    }
+    
+    return matchStatus
   })
 
-  const projetosFiltrados = projetosDinamicos.filter((projeto) => {
-    const matchTitulo = projeto.title?.toLowerCase().includes(filtroProjetos.toLowerCase()) || false
-    const matchCausa = projeto.cause?.toLowerCase().includes(filtroProjetos.toLowerCase()) || false
-    const matchLocalizacao = projeto.location?.toLowerCase().includes(filtroProjetos.toLowerCase()) || false
+  // Debug: log dos usuários filtrados
+  console.log('👥 Total de usuários (da API):', usuarios.length);
+  console.log('👥 Usuários filtrados (por status):', usuariosFiltrados.length);
+  console.log('🔍 Filtro atual de busca:', filtroUsuarios, 'Status:', filtroStatusUsuarios);
+
+  const projetosFiltrados = projetos.filter((projeto) => {
+    const titulo = projeto.title || projeto.titulo || '';
+    const causa = projeto.cause || projeto.categoria || '';
+    const localizacao = projeto.location || projeto.cidade || '';
+    
+    const matchTitulo = titulo.toLowerCase().includes(filtroProjetos.toLowerCase())
+    const matchCausa = causa.toLowerCase().includes(filtroProjetos.toLowerCase())
+    const matchLocalizacao = localizacao.toLowerCase().includes(filtroProjetos.toLowerCase())
     const matchStatus = filtroStatusProjetos === "Todos" || projeto.status === filtroStatusProjetos
     
     const matchBusca = matchTitulo || matchCausa || matchLocalizacao
     return matchBusca && matchStatus
   })
 
+  // Debug: log dos projetos filtrados
+  console.log('📋 Total de projetos:', projetos.length);
+  console.log('📋 Projetos filtrados:', projetosFiltrados.length);
+  console.log('🔍 Filtro atual de projetos:', filtroProjetos, 'Status:', filtroStatusProjetos);
+
   const campanhasFiltradas = campanhas.filter((campanha) => {
-    const matchTitulo = campanha.titulo.toLowerCase().includes(filtroCampanhas.toLowerCase())
+    const titulo = campanha.title || '';
+    const matchTitulo = titulo.toLowerCase().includes(filtroCampanhas.toLowerCase())
     const matchStatus = filtroStatusCampanhas === "Todos" || campanha.status === filtroStatusCampanhas
-    return matchTitulo && matchStatus
+    const matchCategoria = filtroCategoriaCampanhas === "Todas" || campanha.category === filtroCategoriaCampanhas
+    return matchTitulo && matchStatus && matchCategoria
   })
+
+  // Extrair categorias únicas das campanhas
+  const categoriasCampanhas = useMemo(() => {
+    const categorias = campanhas
+      .map(campanha => campanha.category)
+      .filter((categoria, index, arr) => categoria && arr.indexOf(categoria) === index)
+      .sort()
+    return categorias
+  }, [campanhas])
 
   return (
     <div className="min-h-screen bg-background">
@@ -444,12 +780,6 @@ export default function AdminPage() {
               <p className="text-lg text-muted-foreground">Gerencie usuários, projetos e campanhas da plataforma</p>
             </div>
           </div>
-          
-          {/* Botão de Logout */}
-          <LogoutButton 
-            variant="outline"
-            className="flex items-center gap-2"
-          />
         </div>
 
         {/* Estatísticas Gerais */}
@@ -463,9 +793,15 @@ export default function AdminPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Total de Usuários</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {estatisticasGerais.totalUsuarios.toLocaleString()}
+                    {loadingStats ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      estatisticasGerais.totalUsuarios.toLocaleString()
+                    )}
                   </p>
-                  <p className="text-xs text-green-600">{estatisticasGerais.usuariosAtivos} ativos</p>
+                  <p className="text-xs text-green-600">
+                    {loadingStats ? '...' : `${estatisticasGerais.usuariosAtivos} ativos`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -479,8 +815,16 @@ export default function AdminPage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Total de Projetos</p>
-                  <p className="text-2xl font-bold text-foreground">{estatisticasGerais.totalProjetos}</p>
-                  <p className="text-xs text-green-600">{estatisticasGerais.projetosAtivos} ativos</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {loadingStats ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      estatisticasGerais.totalProjetos
+                    )}
+                  </p>
+                  <p className="text-xs text-green-600">
+                    {loadingStats ? '...' : `${estatisticasGerais.projetosAtivos} ativos`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -495,9 +839,15 @@ export default function AdminPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Valor Arrecadado</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatarMoeda(estatisticasGerais.valorArrecadado)}
+                    {loadingStats ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      formatarMoeda(estatisticasGerais.valorArrecadado)
+                    )}
                   </p>
-                  <p className="text-xs text-green-600">{estatisticasGerais.campanhasAtivas} campanhas ativas</p>
+                  <p className="text-xs text-green-600">
+                    {loadingStats ? '...' : `${estatisticasGerais.campanhasAtivas} campanhas ativas`}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -512,7 +862,11 @@ export default function AdminPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Horas Voluntárias</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {estatisticasGerais.horasVoluntariado.toLocaleString()}h
+                    {loadingStats ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      `${estatisticasGerais.horasVoluntariado.toLocaleString()}h`
+                    )}
                   </p>
                   <p className="text-xs text-green-600">Este mês: +1.2k horas</p>
                 </div>
@@ -523,11 +877,10 @@ export default function AdminPage() {
 
         {/* Tabs de Gerenciamento */}
         <Tabs defaultValue="usuarios" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
             <TabsTrigger value="projetos">Projetos</TabsTrigger>
             <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
           </TabsList>
 
           {/* Tab Usuários */}
@@ -542,10 +895,6 @@ export default function AdminPage() {
                     </CardTitle>
                     <CardDescription>Visualize e gerencie todos os usuários da plataforma</CardDescription>
                   </div>
-                  <Button>
-                    <Users className="mr-2 h-4 w-4" />
-                    Adicionar Usuário
-                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -588,11 +937,42 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {usuariosFiltrados.map((usuario) => (
+                      {loadingUsers ? (
+                        // Loading skeleton
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-muted animate-pulse rounded w-32" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-24" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-3 bg-muted animate-pulse rounded w-16" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-muted animate-pulse rounded w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-8 bg-muted animate-pulse rounded w-8" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : usuariosFiltrados.length > 0 ? (
+                        usuariosFiltrados.map((usuario) => (
                         <TableRow key={usuario.id}>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{usuario.nome}</div>
+                              <div className="font-medium">{usuario.nome || usuario.name || 'Nome não disponível'}</div>
                               <div className="text-sm text-muted-foreground">{usuario.email}</div>
                             </div>
                           </TableCell>
@@ -600,22 +980,22 @@ export default function AdminPage() {
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-muted-foreground" />
                               <span className="text-sm">
-                                {usuario.cidade}, {usuario.estado}
+                                {usuario.cidade || usuario.city || 'N/A'}, {usuario.estado || usuario.state || 'N/A'}
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>{formatarData(usuario.dataIngresso)}</TableCell>
+                          <TableCell>{formatarData(usuario.dataIngresso || usuario.createdAt)}</TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <div>{usuario.projetos} projetos</div>
+                              <div>{usuario.projetos || 0} projetos</div>
                               <div className="text-muted-foreground">
-                                {usuario.horas}h • {usuario.doacoes} doações
+                                {usuario.horas || 0}h • {usuario.doacoes || 0} doações
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={usuario.status === "Ativo" ? "default" : "secondary"}>
-                              {usuario.status}
+                            <Badge variant={(usuario.status === "Ativo" || usuario.status === "active" || !usuario.status) ? "default" : "secondary"}>
+                              {usuario.status || "Ativo"}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -632,7 +1012,16 @@ export default function AdminPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    ) : (
+                      // Estado vazio
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center p-8">
+                          <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                          <p className="text-muted-foreground">Nenhum usuário encontrado</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     </TableBody>
                   </Table>
                 </div>
@@ -700,13 +1089,50 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {projetosFiltrados.map((projeto) => (
+                      {loadingProjects ? (
+                        // Loading skeleton
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-muted animate-pulse rounded w-32" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-24" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-4 bg-muted animate-pulse rounded w-16" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-12" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-16" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-muted animate-pulse rounded w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-8 bg-muted animate-pulse rounded w-8" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : projetosFiltrados.length > 0 ? (
+                        projetosFiltrados.map((projeto) => (
                         <TableRow key={projeto.id}>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{projeto.title}</div>
+                              <div className="font-medium">{projeto.title || projeto.titulo}</div>
                               <Badge variant="outline" className="mt-1">
-                                {projeto.cause}
+                                {projeto.cause || projeto.categoria || projeto.category}
                               </Badge>
                             </div>
                           </TableCell>
@@ -714,7 +1140,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-1">
                               <Building className="h-3 w-3 text-muted-foreground" />
                               <span className="text-sm">
-                                {projeto.ngo?.organizationName || 'ONG Logada'}
+                                {projeto.ngo?.organizationName || projeto.organization || projeto.organizacao || 'Organização'}
                               </span>
                             </div>
                           </TableCell>
@@ -722,27 +1148,27 @@ export default function AdminPage() {
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-muted-foreground" />
                               <span className="text-sm">
-                                {projeto.location}
+                                {projeto.location || projeto.cidade || projeto.city}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              {projeto.enrollments?.length || 0}/{projeto.maxVolunteers}
-                              {projeto.enrollments && projeto.enrollments.length > 0 && (
+                              {(projeto.enrollments?.length || projeto.users?.length || projeto.voluntarios || 0)}/{projeto.maxVolunteers || projeto.maxVoluntarios}
+                              {((projeto.enrollments && projeto.enrollments.length > 0) || (projeto.users && projeto.users.length > 0)) && (
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {projeto.enrollments.slice(0, 3).map((enrollment: any) => 
-                                    enrollment.volunteer?.name || enrollment.volunteerId || 'Voluntário'
+                                  {(projeto.enrollments || projeto.users || []).slice(0, 3).map((item: any, index: number) => 
+                                    (item.volunteer?.name || item.name || `Voluntário ${index + 1}`)
                                   ).join(', ')}
-                                  {projeto.enrollments.length > 3 && ` +${projeto.enrollments.length - 3} mais`}
+                                  {(projeto.enrollments?.length || projeto.users?.length || 0) > 3 && ` +${(projeto.enrollments?.length || projeto.users?.length || 0) - 3} mais`}
                                 </div>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <div>{formatarData(projeto.startDate)}</div>
-                              <div className="text-muted-foreground">até {formatarData(projeto.endDate)}</div>
+                              <div>{formatarData(projeto.startDate || projeto.dataInicio)}</div>
+                              <div className="text-muted-foreground">até {formatarData(projeto.endDate || projeto.dataFim)}</div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -772,7 +1198,16 @@ export default function AdminPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    ) : (
+                      // Estado vazio
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center p-8">
+                          <FolderOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                          <p className="text-muted-foreground">Nenhum projeto encontrado</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     </TableBody>
                   </Table>
                 </div>
@@ -792,7 +1227,7 @@ export default function AdminPage() {
                     </CardTitle>
                     <CardDescription>Monitore e gerencie campanhas de doação</CardDescription>
                   </div>
-                  <Button>
+                  <Button onClick={() => setShowCreateCampaign(true)}>
                     <Gift className="mr-2 h-4 w-4" />
                     Nova Campanha
                   </Button>
@@ -801,7 +1236,7 @@ export default function AdminPage() {
               <CardContent>
                 {/* Filtros */}
                 <div className="flex gap-4 mb-6">
-                  <div className="flex-1">
+                  <div className="flex-1 max-w-xs">
                     <div className="relative">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -812,15 +1247,29 @@ export default function AdminPage() {
                       />
                     </div>
                   </div>
+                  <Select value={filtroCategoriaCampanhas} onValueChange={setFiltroCategoriaCampanhas}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todas">Todas as Categorias</SelectItem>
+                      {categoriasCampanhas.map((categoria) => (
+                        <SelectItem key={categoria} value={categoria}>
+                          {categoria}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Select value={filtroStatusCampanhas} onValueChange={setFiltroStatusCampanhas}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Todos">Todos os Status</SelectItem>
-                      <SelectItem value="Ativa">Ativa</SelectItem>
-                      <SelectItem value="Pendente">Pendente</SelectItem>
-                      <SelectItem value="Concluída">Concluída</SelectItem>
+                      <SelectItem value="active">Ativa</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="completed">Concluída</SelectItem>
+                      <SelectItem value="closed">Fechada</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -833,68 +1282,121 @@ export default function AdminPage() {
                         <TableHead>Campanha</TableHead>
                         <TableHead>Organização</TableHead>
                         <TableHead>Progresso</TableHead>
-                        <TableHead>Doadores</TableHead>
-                        <TableHead>Prazo</TableHead>
+                        <TableHead>Doações</TableHead>
+                        <TableHead>Período</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {campanhasFiltradas.map((campanha) => (
+                      {loadingCampaigns ? (
+                        // Loading skeleton
+                        Array.from({ length: 5 }).map((_, index) => (
+                          <TableRow key={index}>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-muted animate-pulse rounded w-32" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-24" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-4 bg-muted animate-pulse rounded w-24" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-4 bg-muted animate-pulse rounded w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                                <div className="h-3 bg-muted animate-pulse rounded w-16" />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-muted animate-pulse rounded w-16" />
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-8 bg-muted animate-pulse rounded w-8" />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : campanhasFiltradas.length > 0 ? (
+                        campanhasFiltradas.map((campanha) => (
                         <TableRow key={campanha.id}>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{campanha.titulo}</div>
+                              <div className="font-medium">{campanha.title}</div>
                               <Badge variant="outline" className="mt-1">
-                                {campanha.categoria}
+                                {campanha.category}
                               </Badge>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Building className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-sm">{campanha.organizacao}</span>
+                              <span className="text-sm">{campanha.ngo?.organizationName || 'ONG'}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <div className="font-medium">{formatarMoeda(campanha.arrecadado)}</div>
+                              <div className="font-medium">{formatarMoeda(campanha.currentAmount)}</div>
                               <div className="text-muted-foreground">
-                                de {formatarMoeda(campanha.meta)} (
-                                {Math.round((campanha.arrecadado / campanha.meta) * 100)}%)
+                                de {formatarMoeda(campanha.goalAmount)} (
+                                {Math.round(((campanha.currentAmount || 0) / (campanha.goalAmount || 1)) * 100)}%)
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div 
+                                  className="bg-primary h-2 rounded-full transition-all" 
+                                  style={{ 
+                                    width: `${Math.min(Math.round(((campanha.currentAmount || 0) / (campanha.goalAmount || 1)) * 100), 100)}%` 
+                                  }}
+                                ></div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Heart className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-sm">{campanha.doadores}</span>
+                              <span className="text-sm">{campanha.numberOfDonations}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="text-sm">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3 text-muted-foreground" />
-                                <span>{formatarData(campanha.dataFim)}</span>
+                                <span>{formatarData(campanha.startDate)}</span>
+                              </div>
+                              <div className="text-muted-foreground">
+                                até {formatarData(campanha.endDate)}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                campanha.status === "Ativa"
+                                campanha.status === "active"
                                   ? "default"
-                                  : campanha.status === "Pendente"
+                                  : campanha.status === "pending"
                                     ? "secondary"
-                                    : "outline"
+                                    : campanha.status === "completed"
+                                      ? "outline"
+                                      : "secondary"
                               }
                             >
-                              {campanha.status}
+                              {campanha.status === "active" ? "Ativa" : 
+                               campanha.status === "pending" ? "Pendente" : 
+                               campanha.status === "completed" ? "Concluída" : 
+                               campanha.status === "closed" ? "Fechada" : campanha.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              {campanha.status === "Pendente" && (
+                              {campanha.status === "pending" && (
                                 <>
                                   <Button variant="ghost" size="sm" className="text-green-600">
                                     <CheckCircle className="h-4 w-4" />
@@ -913,128 +1415,192 @@ export default function AdminPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                    ) : (
+                      // Estado vazio
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center p-8">
+                          <Gift className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                          <p className="text-muted-foreground">Nenhuma campanha encontrada</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     </TableBody>
                   </Table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Tab Relatórios */}
-          <TabsContent value="relatorios" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Crescimento de Usuários
-                  </CardTitle>
-                  <CardDescription>Novos usuários nos últimos 6 meses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span>Janeiro 2024</span>
-                      <span className="font-semibold">+234 usuários</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Fevereiro 2024</span>
-                      <span className="font-semibold">+312 usuários</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Março 2024</span>
-                      <span className="font-semibold">+189 usuários</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5" />
-                    Arrecadação Mensal
-                  </CardTitle>
-                  <CardDescription>Valores arrecadados por mês</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span>Janeiro 2024</span>
-                      <span className="font-semibold">R$ 125.430</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Fevereiro 2024</span>
-                      <span className="font-semibold">R$ 198.720</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Março 2024</span>
-                      <span className="font-semibold">R$ 163.500</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FolderOpen className="h-5 w-5" />
-                    Projetos por Categoria
-                  </CardTitle>
-                  <CardDescription>Distribuição de projetos ativos</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span>Educação</span>
-                      <span className="font-semibold">32 projetos</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Assistência Social</span>
-                      <span className="font-semibold">28 projetos</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Meio Ambiente</span>
-                      <span className="font-semibold">18 projetos</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Saúde</span>
-                      <span className="font-semibold">11 projetos</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5" />
-                    Alertas do Sistema
-                  </CardTitle>
-                  <CardDescription>Itens que precisam de atenção</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>3 projetos aguardando aprovação há mais de 7 dias</AlertDescription>
-                    </Alert>
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>2 campanhas próximas do prazo final sem atingir a meta</AlertDescription>
-                    </Alert>
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>15 usuários inativos há mais de 30 dias</AlertDescription>
-                    </Alert>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modal de Criação de Campanha */}
+      {showCreateCampaign && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" style={{ zIndex: 9999 }}>
+          <div className="bg-background rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'white' }}>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Criar Nova Campanha</h2>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="text-sm text-muted-foreground">Progresso:</div>
+                  <div className="flex gap-1">
+                    {[
+                      novaCampanha.title?.trim(),
+                      novaCampanha.description?.trim(),
+                      novaCampanha.goalAmount > 0,
+                      novaCampanha.category?.trim(),
+                      novaCampanha.startDate,
+                      novaCampanha.endDate
+                    ].filter(Boolean).length}/6 campos preenchidos
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCreateCampaign(false)}
+                className="h-8 w-8 p-0"
+              >
+                <XCircle className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Título da Campanha
+                  {novaCampanha.title?.trim() && <span className="text-green-600 ml-1">✓</span>}
+                </label>
+                <Input
+                  placeholder="Ex: Ajude crianças carentes"
+                  value={novaCampanha.title}
+                  onChange={(e) => setNovaCampanha(prev => ({ ...prev, title: e.target.value }))}
+                  className={novaCampanha.title?.trim() ? 'border-green-500' : ''}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Descrição
+                  {novaCampanha.description?.trim() && <span className="text-green-600 ml-1">✓</span>}
+                </label>
+                <textarea
+                  className={`w-full p-3 border rounded-md resize-none h-24 ${
+                    novaCampanha.description?.trim() ? 'border-green-500' : 'border-input'
+                  }`}
+                  placeholder="Descreva a campanha em detalhes..."
+                  value={novaCampanha.description}
+                  onChange={(e) => setNovaCampanha(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Meta de Arrecadação (R$)
+                    {novaCampanha.goalAmount && novaCampanha.goalAmount > 0 && <span className="text-green-600 ml-1">✓</span>}
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={novaCampanha.goalAmount}
+                    onChange={(e) => setNovaCampanha(prev => ({ ...prev, goalAmount: parseFloat(e.target.value) || 0 }))}
+                    className={novaCampanha.goalAmount && novaCampanha.goalAmount > 0 ? 'border-green-500' : ''}
+                    placeholder="Ex: 10000"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Categoria
+                    {novaCampanha.category?.trim() && <span className="text-green-600 ml-1">✓</span>}
+                  </label>
+                  <Select value={novaCampanha.category} onValueChange={(value) => setNovaCampanha(prev => ({ ...prev, category: value }))}>
+                    <SelectTrigger className={novaCampanha.category?.trim() ? 'border-green-500' : ''}>
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[9999]">
+                      <SelectItem value="Educação">Educação</SelectItem>
+                      <SelectItem value="Saúde">Saúde</SelectItem>
+                      <SelectItem value="Meio Ambiente">Meio Ambiente</SelectItem>
+                      <SelectItem value="Assistência Social">Assistência Social</SelectItem>
+                      <SelectItem value="Cultura">Cultura</SelectItem>
+                      <SelectItem value="Esporte">Esporte</SelectItem>
+                      <SelectItem value="Direitos Humanos">Direitos Humanos</SelectItem>
+                      <SelectItem value="Animais">Animais</SelectItem>
+                      <SelectItem value="Combate à Fome">Combate à Fome</SelectItem>
+                      <SelectItem value="Tecnologia">Tecnologia</SelectItem>
+                      <SelectItem value="Religião">Religião</SelectItem>
+                      <SelectItem value="Emergência">Emergência</SelectItem>
+                      <SelectItem value="Idosos">Idosos</SelectItem>
+                      <SelectItem value="Crianças">Crianças</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Data de Início
+                    {novaCampanha.startDate && <span className="text-green-600 ml-1">✓</span>}
+                  </label>
+                  <Input
+                    type="date"
+                    value={novaCampanha.startDate}
+                    onChange={(e) => setNovaCampanha(prev => ({ ...prev, startDate: e.target.value }))}
+                    className={novaCampanha.startDate ? 'border-green-500' : ''}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Data de Fim
+                    {novaCampanha.endDate && <span className="text-green-600 ml-1">✓</span>}
+                  </label>
+                  <Input
+                    type="date"
+                    value={novaCampanha.endDate}
+                    onChange={(e) => setNovaCampanha(prev => ({ ...prev, endDate: e.target.value }))}
+                    className={novaCampanha.endDate ? 'border-green-500' : ''}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleCreateCampaign}
+                  disabled={creatingCampaign}
+                  className="flex-1"
+                >
+                  {creatingCampaign ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Criando...
+                    </>
+                  ) : (
+                    'Criar Campanha'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={resetCampaignForm}
+                  disabled={creatingCampaign}
+                >
+                  Limpar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateCampaign(false)}
+                  disabled={creatingCampaign}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Criação de Projeto */}
       {showCreateProject && (

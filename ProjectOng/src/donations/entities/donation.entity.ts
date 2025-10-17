@@ -67,6 +67,7 @@ export class Donation {
     message?: string,
     donorName?: string,
     donorEmail?: string,
+    donorId?: string,
   ) {
     this.amount = amount;
     this.donorName = donorName || '';
@@ -74,5 +75,6 @@ export class Donation {
     this.message = message || '';
     this.anonymous = anonymous;
     this.campaignId = campaignId;
+    this.donorId = donorId || '';
   }
 }

@@ -116,4 +116,21 @@ export class UsersService {
       throw new InternalServerErrorException('Error updating user');
     }
   }
+
+  async findAll(name?: string): Promise<User[]> {
+    try {
+      if (name) {
+        return await this.usersRepository
+          .createQueryBuilder('user')
+          .where('user.name ILIKE :name', { name: `%${name}%` })
+          .getMany();
+      }
+      return await this.usersRepository.find();
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error finding users');
+    }
+  }
 }

@@ -118,22 +118,46 @@ export function AuthProvider({ children }: { children: any }) {
       if (response.data) {
         const { accessToken } = response.data;
         
-        // Para ONGs, precisamos decodificar o token para obter informações do usuário
-        // Em um sistema real, você faria isso no backend ou usaria um endpoint específico
-        const user = {
-          id: 'ngo-id', // Será substituído pelo ID real do token
-          name: 'ONG', // Será substituído pelo nome real da ONG
-          email: credentials.email,
-          userType: 'ngo'
-        };
-        
-        setToken(accessToken);
-        setUser(user);
-        
-        localStorage.setItem('auth_token', accessToken);
-        localStorage.setItem('auth_user', JSON.stringify(user));
-        
-        return { success: true };
+        try {
+          // Decodificar o JWT para obter informações da ONG
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          console.log('🔍 Payload do JWT da ONG:', payload);
+          
+          const user = {
+            id: payload.sub || 'ngo-id',
+            name: payload.organizationName || 'ONG',
+            email: payload.email || credentials.email,
+            userType: 'ngo'
+          };
+          
+          setToken(accessToken);
+          setUser(user);
+          
+          localStorage.setItem('auth_token', accessToken);
+          localStorage.setItem('auth_user', JSON.stringify(user));
+          
+          console.log('✅ Login ONG realizado com sucesso:', user);
+          
+          return { success: true };
+        } catch (jwtError) {
+          console.error('❌ Erro ao decodificar JWT:', jwtError);
+          
+          // Fallback para dados padrão se não conseguir decodificar o JWT
+          const user = {
+            id: 'ngo-id',
+            name: 'ONG',
+            email: credentials.email,
+            userType: 'ngo'
+          };
+          
+          setToken(accessToken);
+          setUser(user);
+          
+          localStorage.setItem('auth_token', accessToken);
+          localStorage.setItem('auth_user', JSON.stringify(user));
+          
+          return { success: true };
+        }
       }
       
       return { success: false, error: 'Resposta inválida do servidor' };

@@ -1,10 +1,192 @@
+"use client"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Heart, Users, Gift, TrendingUp, MapPin, Clock } from "lucide-react"
+import { Heart, Users, Gift, TrendingUp, MapPin, Clock, Loader2 } from "lucide-react"
 import Link from "next/link"
 
+// Tipos para as estatísticas
+interface Estatisticas {
+  voluntariosAtivos: number;
+  projetosAtivos: number;
+  totalArrecadado: number;
+  horasVoluntarias: number;
+}
+
+// Tipo para projetos
+interface Projeto {
+  id: string;
+  title: string;
+  description: string;
+  city: string;
+  state: string;
+  hoursPerWeek?: number;
+  users?: any[];
+}
+
 export default function HomePage() {
+  const [estatisticas, setEstatisticas] = useState<Estatisticas>({
+    voluntariosAtivos: 0,
+    projetosAtivos: 0,
+    totalArrecadado: 0,
+    horasVoluntarias: 0
+  });
+  const [projetosDestaque, setProjetosDestaque] = useState<Projeto[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  useEffect(() => {
+    fetchEstatisticas();
+    fetchProjetosDestaque();
+  }, []);
+
+  const fetchEstatisticas = async () => {
+    try {
+      setLoadingStats(true);
+      
+      // Fazer requisições em paralelo para melhor performance
+      const [projectsResponse, campaignsResponse] = await Promise.all([
+        fetch('http://localhost:3333/api/projects?status=open'),
+        fetch('http://localhost:3333/api/campaigns')
+      ]);
+      
+      if (!projectsResponse.ok || !campaignsResponse.ok) {
+        throw new Error('Erro ao buscar dados da API');
+      }
+      
+      const [projectsData, campaignsData] = await Promise.all([
+        projectsResponse.json(),
+        campaignsResponse.json()
+      ]);
+      
+      // Calcular estatísticas de forma mais robusta
+      const totalProjects = Array.isArray(projectsData) ? projectsData.length : 0;
+      
+      const totalVolunteers = Array.isArray(projectsData) ? projectsData.reduce((total: number, item: any) => {
+        const project = item.project || item;
+        const users = project.users || [];
+        return total + (Array.isArray(users) ? users.length : 0);
+      }, 0) : 0;
+      
+      const totalRaised = Array.isArray(campaignsData) ? campaignsData.reduce((total: number, campaign: any) => {
+        return total + (campaign.currentAmount || campaign.arrecadado || 0);
+      }, 0) : 0;
+      
+      // Calcular horas voluntárias baseado no número de voluntários
+      // Estimativa: cada voluntário contribui em média 4h/semana * 12 semanas
+      const estimatedHours = totalVolunteers * 4 * 12;
+      
+      setEstatisticas({
+        voluntariosAtivos: totalVolunteers,
+        projetosAtivos: totalProjects,
+        totalArrecadado: totalRaised,
+        horasVoluntarias: estimatedHours
+      });
+      
+      console.log('📊 Estatísticas carregadas:', {
+        voluntariosAtivos: totalVolunteers,
+        projetosAtivos: totalProjects,
+        totalArrecadado: totalRaised,
+        horasVoluntarias: estimatedHours
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar estatísticas:', error);
+      // Em caso de erro, manter valores zerados ou usar valores padrão
+      setEstatisticas({
+        voluntariosAtivos: 0,
+        projetosAtivos: 0,
+        totalArrecadado: 0,
+        horasVoluntarias: 0
+      });
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const fetchProjetosDestaque = async () => {
+    try {
+      setLoadingProjects(true);
+      
+      const response = await fetch('http://localhost:3333/api/projects?status=open');
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!Array.isArray(data)) {
+        console.warn('Resposta da API não é um array:', data);
+        setProjetosDestaque([]);
+        return;
+      }
+      
+      // Pegar os 3 primeiros projetos para destaque e normalizar dados
+      const projects = data.slice(0, 3).map((item: any) => {
+        const project = item.project || item;
+        return {
+          id: project.id || Math.random().toString(),
+          title: project.title || project.name || 'Projeto sem título',
+          description: project.description || 'Descrição não disponível',
+          city: project.city || project.cidade || 'São Paulo',
+          state: project.state || project.estado || 'SP',
+          hoursPerWeek: project.hoursPerWeek || project.horasPorSemana || 4,
+          users: project.users || []
+        };
+      });
+      
+      setProjetosDestaque(projects);
+      console.log('🎯 Projetos em destaque carregados:', projects);
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar projetos em destaque:', error);
+      setProjetosDestaque([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  const formatarMoeda = (valor: number | undefined | null) => {
+    // Verificar se o valor é válido e converter para número se necessário
+    if (valor === undefined || valor === null || isNaN(valor)) {
+      return 'R$ 0';
+    }
+    
+    const numericValue = Number(valor);
+    
+    if (isNaN(numericValue)) {
+      return 'R$ 0';
+    }
+    
+    if (numericValue >= 1000000) {
+      return `R$ ${(numericValue / 1000000).toFixed(1)}M`;
+    } else if (numericValue >= 1000) {
+      return `R$ ${(numericValue / 1000).toFixed(0)}K`;
+    } else {
+      return `R$ ${numericValue.toFixed(0)}`;
+    }
+  };
+
+  const formatarNumero = (numero: number | undefined | null) => {
+    // Verificar se o valor é válido e converter para número se necessário
+    if (numero === undefined || numero === null || isNaN(numero)) {
+      return '0';
+    }
+    
+    const numericValue = Number(numero);
+    
+    if (isNaN(numericValue)) {
+      return '0';
+    }
+    
+    if (numericValue >= 1000) {
+      return `${(numericValue / 1000).toFixed(1)}K+`;
+    } else {
+      return `${numericValue}+`;
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -99,19 +281,43 @@ export default function HomePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">2.5K+</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                {loadingStats ? (
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                ) : (
+                  formatarNumero(estatisticas.voluntariosAtivos)
+                )}
+              </div>
               <div className="text-muted-foreground">Voluntários Ativos</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">150+</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                {loadingStats ? (
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                ) : (
+                  formatarNumero(estatisticas.projetosAtivos)
+                )}
+              </div>
               <div className="text-muted-foreground">Projetos Ativos</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">R$ 1.2M</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                {loadingStats ? (
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                ) : (
+                  formatarMoeda(estatisticas.totalArrecadado)
+                )}
+              </div>
               <div className="text-muted-foreground">Arrecadado</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">50K+</div>
+              <div className="text-3xl md:text-4xl font-bold text-primary mb-2">
+                {loadingStats ? (
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                ) : (
+                  formatarNumero(estatisticas.horasVoluntarias)
+                )}
+              </div>
               <div className="text-muted-foreground">Horas Voluntárias</div>
             </div>
           </div>
@@ -136,71 +342,63 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Educação para Todos</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  São Paulo, SP
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Projeto de alfabetização para adultos em comunidades carentes. Precisamos de professores voluntários.
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    4h/semana
-                  </div>
-                  <Button size="sm">Participar</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Alimentação Solidária</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Rio de Janeiro, RJ
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Distribuição de refeições para pessoas em situação de rua. Ajude na preparação e distribuição.
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    6h/semana
-                  </div>
-                  <Button size="sm">Participar</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Meio Ambiente</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Belo Horizonte, MG
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Plantio de árvores e limpeza de parques urbanos. Contribua para um meio ambiente mais saudável.
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    3h/semana
-                  </div>
-                  <Button size="sm">Participar</Button>
-                </div>
-              </CardContent>
-            </Card>
+            {loadingProjects ? (
+              // Loading skeleton
+              Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <div className="h-6 bg-muted animate-pulse rounded mb-2" />
+                    <div className="h-4 bg-muted animate-pulse rounded w-2/3" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 mb-4">
+                      <div className="h-4 bg-muted animate-pulse rounded" />
+                      <div className="h-4 bg-muted animate-pulse rounded" />
+                      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 bg-muted animate-pulse rounded w-20" />
+                      <div className="h-8 bg-muted animate-pulse rounded w-20" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : projetosDestaque.length > 0 ? (
+              projetosDestaque.map((projeto) => (
+                <Card key={projeto.id}>
+                  <CardHeader>
+                    <CardTitle>{projeto.title}</CardTitle>
+                    <CardDescription className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      {projeto.city}, {projeto.state}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-4 line-clamp-3">
+                      {projeto.description.length > 150 
+                        ? `${projeto.description.substring(0, 150)}...`
+                        : projeto.description
+                      }
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        {projeto.hoursPerWeek}h/semana
+                      </div>
+                      <Link href={`/projetos/${projeto.id}`}>
+                        <Button size="sm">Participar</Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              // Estado vazio
+              <div className="col-span-3 text-center py-12">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">Nenhum projeto em destaque no momento</p>
+              </div>
+            )}
           </div>
         </div>
       </section>

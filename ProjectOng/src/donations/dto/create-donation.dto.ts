@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, IsBoolean, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateDonationDto {
@@ -45,4 +45,13 @@ export class CreateDonationDto {
   @IsBoolean()
   @IsOptional()
   anonymous: boolean;
+
+  @IsUUID()
+  @IsOptional()
+  @ApiProperty({
+    description: 'ID do usuário que está fazendo a doação (opcional)',
+    example: 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6',
+    required: false,
+  })
+  userId?: string;
 }
