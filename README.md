@@ -105,6 +105,14 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
 ---
 
+## Checklist das 20 Funcionalidades
+
+
+1.  [✔ ] O sistema deve permitir a o cadrasto de usuários
+2.  [✔  ] O sistema deve permitir que o usuário redefina dados 
+3.  [✔  ] Funcionalidade 3 ...
+4.  [✔  ] Funcionalidade 20
+
 ## ⚙️ Backend (voluntariar-backend)
 
 ### 1. Pré-requisitos
