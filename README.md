@@ -110,8 +110,24 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
 1.  [✔ ] O sistema deve permitir a o cadrasto de usuários
 2.  [✔  ] O sistema deve permitir que o usuário redefina dados 
-3.  [✔  ] Funcionalidade 3 ...
-4.  [✔  ] Funcionalidade 20
+3.  [✔  ]  Sistema de autenticação e autorização 
+4.  [✔  ] Cadastro e gestão de ONGs 
+5.  [✔  ] Painel administrativo para gestão das ONGs
+6.  [✔  ] Associação de representantes às ONGs
+7.  [✔  ] Publicação de oportunidades de voluntariado com descrição, requisitos e atividades
+8.  [✔  ]  Busca por oportunidades com filtros 
+9.  [✔  ] Inscrição de voluntários nas oportunidades de voluntariado
+10. [✔  ]  Publicação de campanhas de arrecadação ou doações vinculadas ao voluntariado
+11. [✔  ] Avaliação dos voluntários pelas ONGs após conclusão das atividades
+12. [✔  ] Avaliação das ONGs pelos voluntários com comentários sobre a experiência
+13. [✔  ] Feedback e sugestões de melhorias após término das atividades
+14. [✔  ] Avaliação das ONGs pelos voluntários com comentários sobre a experiência
+15. [✔  ] Visualização do impacto das ações voluntárias
+16. [✔  ] Suporte tecnico em caso de problemas (e-mail)
+17. [✔  ] Visualização do histórico de atividades realizadas por voluntários
+18. [✔  ]  Visualização das habilidades e disponibilidades dos voluntários antes de convidá-los para um projeto
+19. [✔  ] Busca por oportunidades com filtros (localização, tipo de causa, disponibilidade, etc.)
+20. [✔  ] Integração com plataformas de redes
 
 ## ⚙️ Backend (voluntariar-backend)
 
